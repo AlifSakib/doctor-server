@@ -10,7 +10,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const uri = `mongodb+srv://doctorsportal:LCEZT2fCqDSJQpEO@cluster0.4mqdriq.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.4mqdriq.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -22,7 +22,7 @@ async function dbConnect() {
     await client.connect();
     console.log("Database Connected ".bgGreen);
   } catch (error) {
-    console.log(error);
+    console.log(error.message.bgRed);
   }
 }
 
