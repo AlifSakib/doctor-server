@@ -1,7 +1,7 @@
 require("colors");
 require("dotenv").config();
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
@@ -122,6 +122,37 @@ app.get("/jwt", async (req, res) => {
     return res.send({ accessToken: token });
   }
   return res.status(403).send("Unauthorized Token");
+});
+
+app.get("/users", async (req, res) => {
+  const users = await Users.find({}).toArray();
+  res.send(users);
+});
+
+app.put("/users/admin/:id", verifyJWT, async (req, res) => {
+  const decodedemail = req.decoded.email;
+  const query = { email: decodedemail };
+  const user = await Users.findOne(query);
+  if (user.role !== "admin") {
+    return res.send({ status: 401, message: "Access Denied" });
+  }
+  const id = req.params.id;
+  const filter = { _id: ObjectId(id) };
+  const options = { upsert: true };
+  const updatedDoc = {
+    $set: {
+      role: "admin",
+    },
+  };
+  const result = await Users.updateOne(filter, updatedDoc, options);
+  res.send({ success: true });
+});
+
+app.get("/users/admin/:email", async (req, res) => {
+  const email = req.params.email;
+  const query = { email: email };
+  const user = await Users.findOne(query);
+  res.send({ isAdmin: user?.role === "admin" });
 });
 
 app.listen(port, () => {
