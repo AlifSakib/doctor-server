@@ -4,6 +4,7 @@ require("dotenv").config();
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
 const app = express();
 
@@ -37,7 +38,6 @@ app.get("/appointments", async (req, res) => {
   const appointments = await Appointments.find({}).toArray();
   const bookingQuery = { appointmentDate: date };
   const alreadyBooked = await Booking.find(bookingQuery).toArray();
-  console.log(alreadyBooked);
   appointments.forEach((appointment) => {
     const appointmentBooked = alreadyBooked.filter(
       (book) => book.treatment === appointment.name
@@ -75,8 +75,30 @@ app.post("/bookings", async (req, res) => {
   });
 });
 
-app.get("/booking-details", async (req, res) => {
+function verifyJWT(req, res, next) {
+  const authToken = req.headers.authorization;
+  if (!authToken) {
+    return res.send({ status: 401, message: "Unauthorized Token" });
+  }
+
+  const token = authToken.split(" ")[1];
+
+  jwt.verify(token, process.env.ACCESS_TOKEN, (error, decoded) => {
+    if (error) {
+      return res.send({ status: 403, message: "Invalid Token" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
+
+app.get("/booking-details", verifyJWT, async (req, res) => {
+  const decodedemail = req.decoded.email;
   const email = req.query.email;
+
+  if (email !== decodedemail) {
+    return res.send({ status: 401, message: "Access Denied" });
+  }
   const query = { email: email };
   const booking = await Booking.find(query).toArray();
   res.send(booking);
@@ -87,6 +109,19 @@ app.post("/users", async (req, res) => {
   const user = req.body;
   const result = await Users.insertOne(user);
   res.send({ message: "User Information Saved" });
+});
+
+app.get("/jwt", async (req, res) => {
+  const email = req.query.email;
+  const query = { email: email };
+  const user = await Users.findOne(query);
+  if (user) {
+    const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
+      expiresIn: "5h",
+    });
+    return res.send({ accessToken: token });
+  }
+  return res.status(403).send("Unauthorized Token");
 });
 
 app.listen(port, () => {
